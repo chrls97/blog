@@ -43,6 +43,7 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Username and password are required" })
     }
 
+    
 
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
