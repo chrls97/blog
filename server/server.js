@@ -1,46 +1,35 @@
 import express from "express";
-import 'dotenv/config';
-import cors from 'cors'
 import cookieParser from "cookie-parser"
-import authRouter from "./routes/authRoutes.js";
+import 'dotenv/config';
+
+// Import custom modules
+import corsMiddleware from "./middlewares/cors.js";
 import dbcon from "./config/dbConnection.js";
+import authRouter from "./routes/authRoutes.js";
 
 const app = express();
-dbcon();
 
-// CORS configurations to allow request from specified origins
-const allowedOrigins = [
-  process.env.FRONTEND_URL,  // e.g. "https://your-frontend.vercel.app"
-  "http://localhost:5173"
-].filter(Boolean); // removes undefined
 
-// Middlewares
+//Middleware setup
+// CORS middleware for cross-origin requests
+app.use(corsMiddleware);
+// Parse JSON Bodies
 app.use(express.json());
+// Parse URL-encoded bodies
+app.use(express.urlencoded({ extended: true }));
+// Parse cookies from requests
 app.use(cookieParser());
-app.use(cors({
-  origin: (origin, callback) => {
-    if(!origin || allowedOrigins.includes(origin)){
-      callback(null, true);
-    }else{
-      callback(new Error('Not allowed by CORS'))
-    }
-  },
-  credentials: true
-  
-}));
 
 
-
-
+// Authentication routes
+app.use('/api/auth', authRouter);
 
 app.get('/', (req, res) => {
   res.send("API Working")
 })
 
-
-//api endpoint
-app.use('/api/auth', authRouter)
-
 app.listen(process.env.PORT || 4000, () => {
-  console.log("Server running...");
+  console.log(`Server running on port ${process.env.PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  dbcon();
 });
