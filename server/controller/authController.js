@@ -38,14 +38,14 @@ export const registerUser = async (req, res) => {
     const canSubmit = !errors.some(error => error.isValid === 'false');
 
     if (!canSubmit) {
-      return res.status(400).json({ success: false, message: "Password does not meet the criteria", errors: errors });
+      return res.status(400).json({ success: false, message: "Password does not meet the criteria", errors: errors.message });
     }
 
 
 
     //Check Email duplicate
     const [rows] = await pool.execute(
-      `SELECT email FROM ${USERS} WHERE username = ?`, [username]
+      `SELECT username FROM ${USERS} WHERE username = ?`, [username]
     );
     if (rows.length > 0) {
       // Email already exists
@@ -65,19 +65,49 @@ export const registerUser = async (req, res) => {
   }
 };
 
+
 export const loginUser = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Check if empty
-    if (!username, !password) {
+    //Check if usernaem and password is empty
+    if (!username || !password) {
       return res.status(400).json({ success: false, message: "Username and password are required" })
     }
 
-    
+    //Check is username and password is valid
+    const [rows] = await pool.execute(
+      `SELECT username, password FROM ${USERS} WHERE username = ?`,[username]
+    );
+    if (rows.length === 0) {
+      return res.status(401).json({ success: false, message: "Invalid username or password" });
+    }
 
+    //Check and compare the password
+    const user = rows[0];
+    const storedHash = user.password;
+    const isMatch = await bcrypt.compare(password, storedHash);
+    if(!isMatch){
+       return res.status(401).json({success:false , message: "Invalid username of password"})
+    }
+
+    //Generate Token using jwt
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE_IN })
+
+    //Generate Cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+      maxAge: 1 * 24 * 60 * 60 * 1000
+    })
+
+    return res.status(200).json({sucess:true, message: "Login successful"})
+    
   } catch (error) {
+
     res.status(500).json({ success: false, message: error.message });
+    
   }
 }
 
