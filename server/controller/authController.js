@@ -12,6 +12,37 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: "Username, email, and password are required" })
     }
 
+
+    const errors = [
+      {type: 'length', isValid: 'true', message:'Password must be at least 8 characters long.'}, 
+      {type: 'upcase', isValid: 'true', message:'Password must contain at least one uppercase letter.'}, 
+      {type: 'number', isValid: 'true', message:'Password must contain at least one number.'},
+      {type: 'special', isValid: 'true', message:'Password must contain at least one special character.'}
+    ];
+    
+    // Validate password
+    if(password.length < 8){
+      errors[0].isValid = 'false';
+    }
+
+    if(!/[A-Z]/.test(password)){
+      errors[1].isValid = 'false';
+    }
+
+    if(!/[0-9]/.test(password)){
+      errors[2].isValid = 'false';
+    }
+    if(!/[!@#$%^&*(),.?":{}|<>]/.test(password)){
+      errors[3].isValid = 'false';
+    }
+    const canSubmit = !errors.some(error => error.isValid === 'false');
+
+    if (!canSubmit) {
+      return res.status(400).json({ success: false, message: "Password does not meet the criteria", errors: errors });
+    }
+
+
+
     //Check Email duplicate
     const [rows] = await pool.execute(
       `SELECT email FROM ${USERS} WHERE username = ?`, [username]
