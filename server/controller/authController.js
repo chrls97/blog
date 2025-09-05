@@ -1,8 +1,6 @@
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken';
-import { pool } from '../config/dbConnection.js';
-import { USERS } from '../config/dbTableName.js';
 import User from '../models/userModels.js';
+import { generateAccessToken, generateRefreshToken } from '../utils/jwt.js';
 
 export const registerUser = async (req, res) => {
   try {
@@ -38,10 +36,10 @@ export const registerUser = async (req, res) => {
     const canSubmit = !errors.some(error => error.isValid === 'false');
 
     if (!canSubmit) {
-      return res.status(400).json({ success: false, message: "Password does not meet the criteria", errors: errors.message });
+      return res.status(400).json({ success: false, message: "Password does not meet the criteria" });
     }
 
-    //Check Username duplicate
+    //Check if user alreadyt exists
     const checkUsername = await User.findByUsername(username)
     if (checkUsername) {
       return res.status(400).json({sucess:false , message: "Username already exists"})
@@ -60,6 +58,7 @@ export const registerUser = async (req, res) => {
     res.status(200).json({ success: true, message: "User successfully registered" });
 
   } catch (error) {
+    console.log(error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -67,48 +66,80 @@ export const registerUser = async (req, res) => {
 export const loginUser = async (req, res) => {
   try {
     const { username, password } = req.body;
+
+    //Check if username and password is empty
     if (!username || !password) {
       return res.status(400).json({ success: false, message: "Username and password are required" })
     }
+    
+    //find the user by username
+    const user = await User.findByUsername(username)
+    if (!user) {
+      return res.status(401).json({success:false , message: "Invalid username of password"})
+    }
+    
+    //check if password matches
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
+    if(!isPasswordMatch){
+       return res.status(401).json({success:false , message: "Invalid username of password"})
+    }
 
-    // const { username, password } = req.body;
+    // Generate tokens
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
 
-    // //Check if usernaem and password is empty
-    // 
+    // Store refresh token on database
+    await User.updateRefreshToken(user.userId, refreshToken)
 
-    // //Check is username and password is valid
-    // const [rows] = await pool.execute(
-    //   `SELECT username, password FROM ${USERS} WHERE username = ?`,[username]
-    // );
-    // if (rows.length === 0) {
-    //   return res.status(401).json({ success: false, message: "Invalid username or password" });
-    // }
+    // Set tokens in HTTP-only cookies
+    res.cookie('refreshToken', refreshToken,{
+      httpOnly: true, // Prevent JavaScript access
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // Adjust base on environment
+      maxAge: 1 * 24 * 60 * 60 * 1000 // 1 days expiration
+    })
 
-    // //Check and compare the password
-    // const user = rows[0];
-    // const storedHash = user.password;
-    // const isMatch = await bcrypt.compare(password, storedHash);
-    // if(!isMatch){
-    //    return res.status(401).json({success:false , message: "Invalid username of password"})
-    // }
 
-    // //Generate Token using jwt
-    // const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE_IN })
+    
+    return res.status(200).json({
+      sucess:true, 
+      message: "Login successful", 
+      data: {
+        accessToken,
+        user: {
+          id: user.userId,
+          username: user.username,
+          email: user.email
+        }
+      }
 
-    // //Generate Cookie
-    // res.cookie('token', token, {
-    //   httpOnly: true,
-    //   secure: process.env.NODE_ENV === 'production',
-    //   sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-    //   maxAge: 1 * 24 * 60 * 60 * 1000
-    // })
-
-    return res.status(200).json({sucess:true, message: "Login successful"})
+    });
     
   } catch (error) {
-
+    console.log(error.message);
     res.status(500).json({ success: false, message: error.message });
     
+  }
+}
+
+export const logoutUser = async (req, res) => {
+  try {
+     const { userId } = req.body;
+
+    // Remove refresh token from database
+    await User.updateRefreshToken(userId, '');
+
+    // Clear refresh token cookie
+    res.clearCookie('refreshToken', {
+      httpOnly: true, // Prevent JavaScript access
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // Adjust base on environment
+    })
+
+    res.json({ success:true, message: "Logout successful"})
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ success:false , message: error.message})
   }
 }
 
