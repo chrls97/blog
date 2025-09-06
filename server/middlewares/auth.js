@@ -2,13 +2,14 @@ import jwt from 'jsonwebtoken';
 
 // Middleware to verify access token
 export const verifyAccessToken = (req, res, next) => {
+  
   // Get token from Authorization header (Bearer token)
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.split(' ')[1]; // Extract token from "Bearer <token>"
 
   // Check if token exists
   if (!token) {
-    return res.status(400).json({ success: fallase, message: "Access token is required" });
+    return res.status(400).json({ success: false, message: "Access token is required" });
   }
 
   try {
@@ -21,7 +22,17 @@ export const verifyAccessToken = (req, res, next) => {
     
   } catch (error) {
     console.log(error.message)
-    return res.status(500).json({ success:false , message: error.message})
+    // Handle different JWT error types
+        if (error.name === 'TokenExpiredError') 
+          return res.status(401).json({ success: false, message: 'Access token expired' });
+        
+        
+        if (error.name === 'JsonWebTokenError') 
+          return res.status(403).json({ success: false,  message: 'Invalid access token' });
+        
+
+        // Generic error response
+        return res.status(403).json({ success: false,  message: 'Failed to authenticate token' });
   }
 }
 

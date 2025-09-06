@@ -24,6 +24,14 @@ class User {
     return result.insertId
   }
 
+  static async findById(userId){
+    try {
+      const [rows] = await pool.execute(`SELECT * FROM ${USERS} WHERE userId = ?`, [userId]);
+      return rows[0]; // Return the first matching user or undefined
+    } catch (error) {
+      throw error
+    }
+  }
 
   static async updateRefreshToken(userId, refreshToken) {
     try {
@@ -31,6 +39,15 @@ class User {
       return result.affectedRows > 0; // Return true if update was successful
     } catch (error) {
       throw error;
+    }
+  }
+
+  static async findRefreshToken(refreshToken){
+    try {
+      const [rows] = await pool.execute(`SELECT userId, username, email, refreshToken FROM ${USERS} WHERE refreshToken = ?`,[refreshToken])
+      return rows[0]
+    } catch (error) {
+      throw error
     }
   }
 

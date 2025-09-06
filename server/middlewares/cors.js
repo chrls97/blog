@@ -24,6 +24,7 @@ const corsOptions = {
     'X-Requested-With', 
     'Accept'
   ], // Allowed Headers
+  exposedHeaders: ['Authorization'] // Headers that can be accessed by the client
 }
 
 const corsMiddleware = cors(corsOptions);

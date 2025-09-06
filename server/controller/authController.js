@@ -12,25 +12,25 @@ export const registerUser = async (req, res) => {
     }
 
     const errors = [
-      {type: 'length', isValid: 'true', message:'Password must be at least 8 characters long.'}, 
-      {type: 'upcase', isValid: 'true', message:'Password must contain at least one uppercase letter.'}, 
-      {type: 'number', isValid: 'true', message:'Password must contain at least one number.'},
-      {type: 'special', isValid: 'true', message:'Password must contain at least one special character.'}
+      { type: 'length', isValid: 'true', message: 'Password must be at least 8 characters long.' },
+      { type: 'upcase', isValid: 'true', message: 'Password must contain at least one uppercase letter.' },
+      { type: 'number', isValid: 'true', message: 'Password must contain at least one number.' },
+      { type: 'special', isValid: 'true', message: 'Password must contain at least one special character.' }
     ];
-    
+
     // Validate password
-    if(password.length < 8){
+    if (password.length < 8) {
       errors[0].isValid = 'false';
     }
 
-    if(!/[A-Z]/.test(password)){
+    if (!/[A-Z]/.test(password)) {
       errors[1].isValid = 'false';
     }
 
-    if(!/[0-9]/.test(password)){
+    if (!/[0-9]/.test(password)) {
       errors[2].isValid = 'false';
     }
-    if(!/[!@#$%^&*(),.?":{}|<>]/.test(password)){
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
       errors[3].isValid = 'false';
     }
     const canSubmit = !errors.some(error => error.isValid === 'false');
@@ -42,12 +42,12 @@ export const registerUser = async (req, res) => {
     //Check if user alreadyt exists
     const checkUsername = await User.findByUsername(username)
     if (checkUsername) {
-      return res.status(400).json({sucess:false , message: "Username already exists"})
+      return res.status(400).json({ sucess: false, message: "Username already exists" })
     }
-    
+
     //Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     //Crete new user
     const userId = await User.create({
       username,
@@ -71,17 +71,17 @@ export const loginUser = async (req, res) => {
     if (!username || !password) {
       return res.status(400).json({ success: false, message: "Username and password are required" })
     }
-    
+
     //find the user by username
     const user = await User.findByUsername(username)
     if (!user) {
-      return res.status(401).json({success:false , message: "Invalid username of password"})
+      return res.status(401).json({ success: false, message: "Invalid username of password" })
     }
-    
+
     //check if password matches
     const isPasswordMatch = await bcrypt.compare(password, user.password);
-    if(!isPasswordMatch){
-       return res.status(401).json({success:false , message: "Invalid username of password"})
+    if (!isPasswordMatch) {
+      return res.status(401).json({ success: false, message: "Invalid username of password" })
     }
 
     // Generate tokens
@@ -92,39 +92,36 @@ export const loginUser = async (req, res) => {
     await User.updateRefreshToken(user.userId, refreshToken)
 
     // Set tokens in HTTP-only cookies
-    res.cookie('refreshToken', refreshToken,{
+    res.cookie('refreshToken', refreshToken, {
       httpOnly: true, // Prevent JavaScript access
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // Adjust base on environment
       maxAge: 1 * 24 * 60 * 60 * 1000 // 1 days expiration
     })
 
-
-    
     return res.status(200).json({
-      sucess:true, 
-      message: "Login successful", 
+      sucess: true,
+      message: "Login successful",
       data: {
         accessToken,
         user: {
-          id: user.userId,
+          userId: user.userId,
           username: user.username,
           email: user.email
         }
       }
-
     });
-    
+
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ success: false, message: error.message });
-    
+
   }
 }
 
 export const logoutUser = async (req, res) => {
   try {
-     const { userId } = req.body;
+    const { userId } = req.body;
 
     // Remove refresh token from database
     await User.updateRefreshToken(userId, '');
@@ -136,10 +133,71 @@ export const logoutUser = async (req, res) => {
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // Adjust base on environment
     })
 
-    res.json({ success:true, message: "Logout successful"})
+    res.json({ success: true, message: "Logout successful" })
   } catch (error) {
     console.log(error.message);
-    res.status(500).json({ success:false , message: error.message})
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+export const refreshToken = async (req, res) => {
+  try {
+    const userId = req.user.userId
+
+    const user = await User.findRefreshToken(req.refreshToken)
+    if (!user) {
+      return res.status(400).json({ success: false, message: "Invalid refresh token" })
+    }
+
+    // Generate new tokens
+    const newAccessToken = generateAccessToken(user);
+    const newRefreshToken = generateRefreshToken(user);
+
+    // Store refresh token in database
+    await User.updateRefreshToken(user.userId, newRefreshToken);
+
+    // Set tokens in HTTP-only cookies
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true, // Prevent JavaScript access
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // Adjust base on environment
+      maxAge: 1 * 24 * 60 * 60 * 1000 // 1 days expiration
+    });
+
+    return res.status(200).json({
+      sucess: true,
+      message: "Token refreshed successfully",
+      data: {
+        accessToken: newAccessToken,
+        user: {
+          userId: user.userId,
+          username: user.username,
+          email: user.email
+        }
+      }
+    });
+
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+export const getCurrentUser = async (req, res) => {
+  try {
+
+    
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" })
+    }
+
+    res.status(200).json({ success: true, data: user })
+
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ success: false, message: error.message })
   }
 }
 
