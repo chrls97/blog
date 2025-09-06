@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 export const generateAccessToken = (user) => {
   // Create payload with user information
   const payload = {
-    id: user.id,
+    userId: user.userId,
     email: user.email,
     username: user.username
   };
@@ -12,14 +12,14 @@ export const generateAccessToken = (user) => {
   return jwt.sign(
     payload,
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: process.env.ACCESS_TOKEN_EXPIRE || '15m' }
+    { expiresIn: process.env.ACCESS_TOKEN_EXPIRE || '1m' }
   );
 }
 
 export const generateRefreshToken = (user) => {
   // Create payload with user information
   const payload = {
-    id: user.id,
+    userId: user.userId,
     username: user.username
   }
 
