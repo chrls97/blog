@@ -23,16 +23,14 @@ export const verifyAccessToken = (req, res, next) => {
   } catch (error) {
     console.log(error.message)
     // Handle different JWT error types
-        if (error.name === 'TokenExpiredError') 
-          return res.status(401).json({ success: false, message: 'Access token expired' });
-        
-        
-        if (error.name === 'JsonWebTokenError') 
-          return res.status(403).json({ success: false,  message: 'Invalid access token' });
-        
+    if (error.name === 'TokenExpiredError') 
+      return res.status(401).json({ success: false, message: 'Access token expired' });
+    
+    if (error.name === 'JsonWebTokenError') 
+      return res.status(403).json({ success: false,  message: 'Invalid access token' });
 
-        // Generic error response
-        return res.status(403).json({ success: false,  message: 'Failed to authenticate token' });
+    // Generic error response
+    return res.status(403).json({ success: false,  message: 'Failed to authenticate token' });
   }
 }
 
