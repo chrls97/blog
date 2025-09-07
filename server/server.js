@@ -5,12 +5,18 @@ import 'dotenv/config';
 // Import custom modules
 import corsMiddleware from "./middlewares/cors.js";
 import dbcon from "./config/dbConnection.js";
+import { globalRateLimiter } from "./middlewares/rateLimiter.js";
+
+// Import routes
 import authRouter from "./routes/authRoutes.js";
+import userRouter from "./routes/userRoutes.js";
+
 
 const app = express();
 
 
 //Middleware setup
+app.use(globalRateLimiter)
 // CORS middleware for cross-origin requests
 app.use(corsMiddleware);
 // Parse JSON Bodies
@@ -23,6 +29,8 @@ app.use(cookieParser());
 
 // Authentication routes
 app.use('/api/auth', authRouter);
+// User Routes
+app.use('/api/user', userRouter);
 
 app.get('/', (req, res) => {
   res.send("API Working")
