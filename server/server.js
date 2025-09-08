@@ -7,9 +7,13 @@ import corsMiddleware from "./middlewares/cors.js";
 import dbcon from "./config/dbConnection.js";
 import { globalRateLimiter } from "./middlewares/rateLimiter.js";
 
+// Middleware
+import { verifyAccessToken } from "./middlewares/auth.js";
+
 // Import routes
 import authRouter from "./routes/authRoutes.js";
 import userRouter from "./routes/userRoutes.js";
+
 
 
 const app = express();
@@ -29,6 +33,11 @@ app.use(cookieParser());
 
 // Authentication routes
 app.use('/api/auth', authRouter);
+
+//Verify Access Token middleware
+app.use(verifyAccessToken)
+
+
 // User Routes
 app.use('/api/user', userRouter);
 
