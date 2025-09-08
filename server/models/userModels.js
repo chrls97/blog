@@ -7,7 +7,7 @@ class User {
     try {
       // Execute query to find user by email
       const [rows] = await pool.execute(
-        `SELECT * FROM ${USERS} WHERE username = ?`, [username]
+        `SELECT userId, username, password, email, refreshToken FROM ${USERS} WHERE username = ?`, [username]
       )
       return rows[0]; // Return the first matching user or undefined
     } catch (error) {
@@ -26,7 +26,7 @@ class User {
 
   static async findById(userId){
     try {
-      const [rows] = await pool.execute(`SELECT * FROM ${USERS} WHERE userId = ?`, [userId]);
+      const [rows] = await pool.execute(`SELECT  userId, username, email, refreshToken FROM ${USERS} WHERE userId = ?`, [userId]);
       return rows[0]; // Return the first matching user or undefined
     } catch (error) {
       throw error
